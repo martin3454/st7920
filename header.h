@@ -21,6 +21,7 @@ void ST_GraphicsON();
 void ST_GraphicsOFF();
 void ST_WriteCmd(uint8_t cmd);
 void ST_Init();
+void ST_InitG();
 void ST_WriteData(uint8_t dat);
 void ST_Epuls();
 void ST_SetDataPins(uint8_t val);
@@ -30,12 +31,31 @@ const uint8_t data_pins[8] = {13, 12, 14, 27, 26, 25, 33, 32};
 
 
 
-
+void ST_InitG(){
+  ST_WriteCmd(0x34);
+  delay(1);
+  ST_WriteCmd(0x40);
+  delay(1);
+  ST_WriteCmd(0x01);
+  delay(1);
+  ST_WriteCmd(0x06);
+  delay(1);
+  ST_WriteCmd(0x12);
+  delayMicroseconds(80);
+  delayMicroseconds(80);
+  ST_WriteCmd(0x34);
+  delay(1);
+  ST_WriteCmd(0x02);
+  delay(1);
+}
 
 void ST_GraphicsON(){
-  ST_WriteCmd(BASIC_SET);
-  ST_WriteCmd(EXTENDED_SET);
-  ST_WriteCmd(GRAPHICS_ON);
+  ST_WriteCmd(0x30);
+  delay(1);
+  ST_WriteCmd(0x34);
+  delay(1);
+  ST_WriteCmd(0x36);
+  delay(1);
 }
 void ST_GraphicsOFF(){
   ST_WriteCmd(GRAPHICS_ON);
@@ -55,7 +75,7 @@ inline void ST_Epuls(){
 inline void ST_SetDataPins(uint8_t val){
   for(uint8_t i = 0; i < 8; i++)
     digitalWrite(data_pins[i], (val >> i) & 0x01);
-    delay(10);
+    delayMicroseconds(100);
 }
 
 
@@ -63,14 +83,14 @@ inline void ST_WriteCmd(uint8_t cmd){
   digitalWrite(RS, LOW);
   ST_SetDataPins(cmd);
   ST_Epuls();
-  delay(10);
+  delayMicroseconds(100);
 }
 
 inline void ST_WriteData(uint8_t dat){
   digitalWrite(RS, HIGH);
   ST_SetDataPins(dat);
   ST_Epuls();
-  delay(10);
+  delayMicroseconds(100);
 }
 
 void ST_Init(){
@@ -84,8 +104,7 @@ void ST_Init(){
   pinMode(RS, OUTPUT);
   pinMode(EN, OUTPUT);
   //****************************
-
-
+  
   ST_WriteCmd(0x30);  // 8bit mode
   delayMicroseconds(110);  //  >100us delay
 
@@ -102,7 +121,7 @@ void ST_Init(){
   ST_WriteCmd(0x06);  // cursor increment right no shift
   delay(1);  // 1ms delay
 
-  ST_WriteCmd(0x0C | 0x03);  // D=1, C=0, B=0
+  ST_WriteCmd(0x0C);  // D=1, C=0, B=0
   delay(1);  // 1ms delay
 
   ST_WriteCmd(0x02);  // return to home

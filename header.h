@@ -17,6 +17,12 @@
 
 
 
+void Gdram_Write(uint8_t y, uint8_t x);
+uint16_t Gdram_Read();
+void SetPixel(uint8_t x, uint8_t y);
+void SetPos(uint8_t x, uint8_t y);
+void SetPixelPos(uint8_t x, uint8_t y);
+
 void ST_GraphicsON();
 void ST_GraphicsOFF();
 void ST_WriteCmd(uint8_t cmd);
@@ -29,25 +35,48 @@ void ST_SetDataPins(uint8_t val);
 
 const uint8_t data_pins[8] = {13, 12, 14, 27, 26, 25, 33, 32};
 
+const uint8_t index_offset[16] = {15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0};
+
+const uint8_t lcd_pozice[64] = {
+  0x80,0x81,0x82,0x83,0x84,0x85,0x86,0x87,
+  0x90,0x91,0x92,0x93,0x94,0x95,0x96,0x97,
+  0x88,0x89,0x90,0x91,0x92,0x93,0x94,0x95,
+  0x98,0x99,0x9a,0x9b,0x9c,0x9d,0x9e,0x9f
+};
+
+enum Barvy{OFF, ON};
+uint8_t posX, posY;
+Barvy barva = ON;
+  
 
 
-void ST_InitG(){
-  ST_WriteCmd(0x34);
-  delay(1);
-  ST_WriteCmd(0x40);
-  delay(1);
-  ST_WriteCmd(0x01);
-  delay(1);
-  ST_WriteCmd(0x06);
-  delay(1);
-  ST_WriteCmd(0x12);
-  delayMicroseconds(80);
-  delayMicroseconds(80);
-  ST_WriteCmd(0x34);
-  delay(1);
-  ST_WriteCmd(0x02);
-  delay(1);
+uint16_t gdram[64][8];
+
+
+
+void SetPixel(uint8_t x, uint8_t y){
+  uint16_t temp = 0;
+  Gdram_Write(y, x);
+  temp = Gdram_Read();
+  SetPosition(x, y);
+
+  uint8_t HByte_temp, LByte_temp;
+  HByte_temp = temp >> 8;
+  LByte_temp = temp & 0xff;
+  //ST_WriteData(temp);
 }
+
+void Gdram_Write(uint8_t y, uint8_t x){
+  if(x < 0 || x > 127) return;
+  if(y <0 || y > 63) return;
+  if(barva) gdram[y][x/16] |= (1 << index_offset[x%16]);
+  else gdram[y][x/16] &= ~(1 << index_offset[x%16]);
+}
+
+uint16_t Gdram_Read(){
+  return gdram[posY][posX];
+}
+
 
 void ST_GraphicsON(){
   ST_WriteCmd(0x30);
@@ -59,8 +88,11 @@ void ST_GraphicsON(){
 }
 void ST_GraphicsOFF(){
   ST_WriteCmd(GRAPHICS_ON);
+  delay(1);
   ST_WriteCmd(EXTENDED_SET);
+  delay(1);
   ST_WriteCmd(BASIC_SET);
+  delay(1);
 }
 
 inline void ST_Epuls(){
@@ -75,7 +107,7 @@ inline void ST_Epuls(){
 inline void ST_SetDataPins(uint8_t val){
   for(uint8_t i = 0; i < 8; i++)
     digitalWrite(data_pins[i], (val >> i) & 0x01);
-    delayMicroseconds(100);
+    delayMicroseconds(10);                                  //nastavit cas nwm
 }
 
 
@@ -103,6 +135,9 @@ void ST_Init(){
   //pinMode(RST, OUTPUT);
   pinMode(RS, OUTPUT);
   pinMode(EN, OUTPUT);
+
+  poX = poxY = 0;
+  memset(gdram, 0x0000, sizeof(gdram));
   //****************************
   
   ST_WriteCmd(0x30);  // 8bit mode

@@ -20,9 +20,9 @@
 void Gdram_Write(uint8_t y, uint8_t x);
 uint16_t Gdram_Read();
 void SetPixel(uint8_t x, uint8_t y);
-uint8_t ReturnCharPos(uint8_t x, uint8_t y);
-void SetCharPos(uint8_t x, uint8_t y);
-void SetPixelPos(uint8_t x, uint8_t y);
+uint8_t CursorPos(uint8_t x, uint8_t y);
+void SetCursor(uint8_t x, uint8_t y);
+void SetPosition(uint8_t x, uint8_t y);
 
 
 
@@ -55,20 +55,50 @@ uint16_t gdram[64][8];
 
 
 
-uint8_t ReturnCharPos(uint8_t x, uint8_t y){
-  return lcd_pozice[
+void SetCursor(uint8_t x, uint8_t y){
+  if(x < 0 || x > 15) return;
+  if(y < 0 || y > 4) return;
+
+  uint8_t pos = CursorPos(x,y);
+  ST_WriteCmd(pos);
+}
+
+
+uint8_t CursorPos(uint8_t x, uint8_t y){
+  return lcd_pozice[y][x];
+}
+
+void SetPosition(uint8_t x, uint8_t y){
+  /*
+   * 1. vertikal(6-0) 2. horizontal{3-0)
+   */
+  if(y < 0 || y > 63) return;
+  if(x < 0 || x > 127) return;
+
+  posX = x / 16;
+  if(posY > 31) posX |= 0x08;
+  
+  posY = y % 32;
+  ST_WriteCmd(GDRAM_ADR | posY);
+  ST_WriteCmd(GDRAM_ADR | posX);
+   
 }
 
 void SetPixel(uint8_t x, uint8_t y){
+  
   uint16_t temp = 0;
   Gdram_Write(y, x);
-  temp = Gdram_Read();
   SetPosition(x, y);
+  temp = Gdram_Read();
+  uint8_t temp_hbyte, temp_lbyte;
+  temp_hbyte = temp >> 8;
+  temp_lbyte = temp & 0xff;
+  ST_WriteData(temp_hbyte);
+  ST_WriteData(temp_lbyte);
 
-  uint8_t HByte_temp, LByte_temp;
-  HByte_temp = temp >> 8;
-  LByte_temp = temp & 0xff;
-  //ST_WriteData(temp);
+  /*
+   * doplnit
+   */
 }
 
 void Gdram_Write(uint8_t y, uint8_t x){

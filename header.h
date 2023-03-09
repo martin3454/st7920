@@ -13,10 +13,13 @@
 #define EXTENDED_SET    0x34
 #define GRAPHICS_ON     0x36
 #define GDRAM_ADR       0x80
-  
+
+#define ABS(x) ((x < 0) ? -x : x)
 
 
-
+void Line(uint8_t x1, uint8_t y1, uint8_t x2, uint8_t y2);
+void circle_points(uint8_t x, uint8_t y, uint8_t xc, uint8_t yc);
+void Circle(uint8_t xc, uint8_t yc, uint8_t r);
 void Gdram_Write(uint8_t y, uint8_t x);
 uint16_t Gdram_Read();
 void SetPixel(uint8_t x, uint8_t y);
@@ -33,7 +36,6 @@ void ST_GraphicsON();
 void ST_GraphicsOFF();
 void ST_WriteCmd(uint8_t cmd);
 void ST_Init();
-void ST_InitG();
 void ST_WriteData(uint8_t dat);
 void ST_Epuls();
 void ST_SetDataPins(uint8_t val);
@@ -56,6 +58,90 @@ Barvy barva = ON;
 uint16_t gdram[64][8];
 
 
+void Circle(uint8_t xc, uint8_t yc, uint8_t r){
+
+  int pk, x, y;
+  pk = 3 - 2 * r;
+  x = 0;
+  y = r;
+  circle_points(x, y, xc, yc);
+  while(x < y){
+    if(pk < 0){
+      pk = pk + 4*x + 6;
+      circle_points(++x, y, xc, yc);
+    }else{
+      pk = pk + 4 * (x - y) + 10;
+      circle_points(++x, --y, xc, yc);
+    }
+  }
+}
+
+void circle_points(uint8_t x, uint8_t y, uint8_t xc, uint8_t yc){
+
+  SetPixel(x + xc, y + yc);
+  SetPixel(-x + xc, y + yc);
+  SetPixel(x + xc, -y + yc);
+  SetPixel(-x + xc, -y + yc);
+  SetPixel(y + xc, x + yc);
+  SetPixel(y + xc, -x + yc);
+  SetPixel(-y + xc, x + yc);
+  SetPixel(-y + xc, -x + yc);
+}
+
+
+void Line(uint8_t x1, uint8_t y1, uint8_t x2, uint8_t y2){
+  int x, y, dx, dy, dx1, dy1, px, py, xe, ye, i;
+  dx = x2 - x1;
+  dy = y2 - y1;
+  dx1 = ABS(dx);
+  dy1 = ABS(dy);
+  px = 2*dy1 - dx1;
+  py = 2*dx1 - dy1;
+
+  if(dy1 <= dx1){
+    if(dx >= 0){
+      x = x1;
+      y = y1;
+      xe = x2;
+    }else{
+      x = x2;
+      y = y2;
+      xe = x1;
+    }
+    SetPixel(x,y);
+    while(x < xe){
+      x = x + 1;
+      if(px < 0) px = px + 2*dy1;
+      else{
+        if((dx < 0 && dy < 0) || (dx > 0 && dy > 0)) y = y + 1;
+        else y = y - 1;
+        px = px + 2*(dy1 - dx1);
+      }
+      SetPixel(x,y);
+    }
+  }else{
+    if(dy >= 0){
+      x = x1;
+      y = y1;
+      ye = y2;
+    }else{
+      x = x2;
+      y = y2;
+      ye = y1;
+    }
+    SetPixel(x,y);
+    while(y < ye){
+      y = y + 1;
+      if(py <= 0) py = py + 2*dx1;
+      else{
+        if((dx < 0 && dy < 0) || (dx > 0 && dy > 0)) x = x + 1;
+        else x = x - 1;
+        py = py + 2*(dx1 - dy1);
+      }
+      SetPixel(x, y);
+    }
+  }
+}
 
 
 
@@ -63,8 +149,8 @@ void ClearScreen(){
   memset(gdram, 0x0000, sizeof(gdram));
   for (byte x = 0; x < 16; x++)
     for (byte y = 0; y < 32; y++) {
-      ST_WriteCmd(0x80 | y);
-      ST_WriteCmd(0x80 | x);
+      ST_WriteCmd(GDRAM_ADR | y);
+      ST_WriteCmd(GDRAM_ADR | x);
       ST_WriteData(0x00);
       ST_WriteData(0x00);
     }
@@ -73,8 +159,8 @@ void FillScreen(){
   memset(gdram, 0xffff, sizeof(gdram));
   for (byte x = 0; x < 16; x++)
     for (byte y = 0; y < 32; y++) {
-      ST_WriteCmd(0x80 | y);
-      ST_WriteCmd(0x80 | x);
+      ST_WriteCmd(GDRAM_ADR | y);
+      ST_WriteCmd(GDRAM_ADR | x);
       ST_WriteData(0xff);
       ST_WriteData(0xff);
     }
@@ -95,9 +181,7 @@ uint8_t CursorPos(uint8_t x, uint8_t y){
 }
 
 void SetPosition(uint8_t x, uint8_t y){
-  /*
-   * 1. vertikal(6-0) 2. horizontal{3-0)
-   */
+  //1. vertikal(6-0) 2. horizontal{3-0) 
   if(y < 0 || y > 63) return;
   if(x < 0 || x > 127) return;
 
@@ -113,7 +197,6 @@ void SetPosition(uint8_t x, uint8_t y){
 }
 
 void SetPixel(uint8_t x, uint8_t y){
-  
   uint16_t temp = 0;
   Gdram_Write(y, x);
   SetPosition(x, y);
@@ -123,10 +206,6 @@ void SetPixel(uint8_t x, uint8_t y){
   temp_lbyte = temp & 0xff;
   ST_WriteData(temp_hbyte);
   ST_WriteData(temp_lbyte);
-
-  /*
-   * doplnit
-   */
 }
 
 void Gdram_Write(uint8_t y, uint8_t x){
@@ -159,7 +238,6 @@ void ST_GraphicsOFF(){
 }
 
 inline void ST_Epuls(){
-  //delayMicroseconds(100); 
   digitalWrite(EN,LOW);  
   delayMicroseconds(1);
   digitalWrite(EN,HIGH);  

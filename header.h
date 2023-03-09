@@ -24,6 +24,9 @@ uint8_t CursorPos(uint8_t x, uint8_t y);
 void SetCursor(uint8_t x, uint8_t y);
 void SetPosition(uint8_t x, uint8_t y);
 
+void ClearScreen();
+void FillScreen();
+
 
 
 void ST_GraphicsON();
@@ -55,6 +58,29 @@ uint16_t gdram[64][8];
 
 
 
+
+void ClearScreen(){
+  memset(gdram, 0x0000, sizeof(gdram));
+  for (byte x = 0; x < 16; x++)
+    for (byte y = 0; y < 32; y++) {
+      ST_WriteCmd(0x80 | y);
+      ST_WriteCmd(0x80 | x);
+      ST_WriteData(0x00);
+      ST_WriteData(0x00);
+    }
+}
+void FillScreen(){
+  memset(gdram, 0xffff, sizeof(gdram));
+  for (byte x = 0; x < 16; x++)
+    for (byte y = 0; y < 32; y++) {
+      ST_WriteCmd(0x80 | y);
+      ST_WriteCmd(0x80 | x);
+      ST_WriteData(0xff);
+      ST_WriteData(0xff);
+    }
+}
+
+
 void SetCursor(uint8_t x, uint8_t y){
   if(x < 0 || x > 15) return;
   if(y < 0 || y > 4) return;
@@ -76,12 +102,14 @@ void SetPosition(uint8_t x, uint8_t y){
   if(x < 0 || x > 127) return;
 
   posX = x / 16;
-  if(posY > 31) posX |= 0x08;
+  if(y > 31) posX |= 0x08;
   
   posY = y % 32;
   ST_WriteCmd(GDRAM_ADR | posY);
+  
   ST_WriteCmd(GDRAM_ADR | posX);
-   
+  posX &= 0x07;
+  posY = y;
 }
 
 void SetPixel(uint8_t x, uint8_t y){
@@ -142,7 +170,7 @@ inline void ST_Epuls(){
 inline void ST_SetDataPins(uint8_t val){
   for(uint8_t i = 0; i < 8; i++)
     digitalWrite(data_pins[i], (val >> i) & 0x01);
-    delayMicroseconds(10);                                  //nastavit cas nwm
+    //delayMicroseconds(10);                                  //nastavit cas nwm
 }
 
 
@@ -171,7 +199,7 @@ void ST_Init(){
   pinMode(RS, OUTPUT);
   pinMode(EN, OUTPUT);
 
-  poX = poxY = 0;
+  posX = posY = 0;
   memset(gdram, 0x0000, sizeof(gdram));
   //****************************
   
